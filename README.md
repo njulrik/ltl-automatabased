@@ -25,7 +25,7 @@ Alternatively you can download and install the data set yourself ([Download](htt
 1. Run `run_mcc.sh`.
 2. The answers are now available in the `BENCHKIT` folder.
 
-### Data analysis
+### Data analysis (Single core)
 Data analysis is done using various Python 3 scripts located in `analysis`. All scripts (excluding `common.py`) have usage strings via `-h` (e.g. `python analysis/to_csv.py -h` or equivalently `analysis/to_csv.py -h`), which may contain more options than detailed here.
 
 #### Using our results
@@ -56,51 +56,23 @@ Each line corresponds to one answer, thus the total number of answers can be fou
 $ python analysis/trivial-answers.py csv/foo.csv csv/bar.csv > exclude
 ```
 
-#### Basic Statistics
+#### Computing "interesting" instances
 
-A rudimentary statistical overview can be obtained using `stats-generator.py`, for example (assuming `baseline.csv` is created from `output/mcc/baseline` from our results)
-
-``` sh
-$ python analysis/stats-generator.py -i csv/baseline.csv
-Number of queries: 32512
-Number of answers not in oracle: 9931
-Number of answered queries of all queries: 29103/32512
-Percentage answered: 89.5146407480315%
-Number of correct of answered: 19172/19172
-Percentage correct of answered: 100.0%
-```
-
-Alternately, the CSV input can be obtained directly from stdin, which allows for the following useful workflows:
+For ease of presentation, the figures in the paper do not include all 37792 queries in the MCC 2021 states since a massive number of these are straightforward to solve with any technique.
+We consider as interesting those queries that took more than 30 seconds for the baseline to solve and was solved by any configuration present.
+To compute the queries to exclude from consideration, run, e.g. 
 
 ``` sh
-python analysis/to_csv.py output/mcc2020/foo | python analysis/stats-generator.py
-python analysis/to_csv.py output/mcc2020/foo | tee csv/foo.csv | python analysis/stats-generator.py
+$ python analysis/aggregate-files.py csv/foo.csv csv/bar.csv > exclude
 ```
 
-The notion of "correct" used here depends on oracle files from https://github.com/yanntm/pnmcc-models-2020, which we gather into a single, sorted file (default `single-oracle`).
-The oracle file for the 2020 dataset is provided; for other datasets, the single oracle can be obtained as follows (assuming oracles formatted as in the repo are located in `./oracle`).
+The first file listed is treated as baseline file, thus in the above example the interesting queries would be those that took configuration `foo` more than 30 seconds to solve but were solved by either of `foo` and/or `bar`.
 
-``` sh
-$ for file in $(find . -name "*LTLF.out"); do grep "\(TRUE\|FALSE\) TECHNIQUES" $file; done | sed -E "s/FORMULA (.*)-([[:digit:]]+) (TRUE|FALSE).*/\1-LTLF-\2, \3/" > ../tmp
-$ for file in $(find . -name "*LTLC.out"); do grep "\(TRUE\|FALSE\) TECHNIQUES" $file; done | sed -E "s/FORMULA (.*)-([[:digit:]]+) (TRUE|FALSE).*/\1-LTLC-\2, \3/" >> ../tmp
-$ sort tmp > single-oracle-new
-$ rm tmp
-```
-
-Then the new oracle file can be selected using `stats-generator.py -o single-oracle-new`.
-
-#### Filtering trivial instances
-
-The plots and tables in the thesis exclude answers obtained trivially, either due to no valid initial state or due to query simplification. 
-To compute these based on CSV files `csv/foo.csv` and `csv/bar.csv`:
-
-``` sh
-$ python analysis/trivial-answers.py csv/foo.csv csv/bar.csv > exclude
-```
+Naturally you can specify your own list of queries to exclude. Make sure that the queries in your file also contain the `-LTLC` or `-LTLF` suffix if relevant, i.e. they correspond to query names in the .csv files, otherwise nothing will be excluded.
 
 #### Tables
 
-The tables are output to `.tex` files containing just a `tabular` environment. The tables depend on the `siunitx` package. To modify the style or contents of the tables (e.g. if you want to avoid the `siunitx` dependency), we refer to `analysis/common.py`.
+The tables are output to `.tex` files containing just a `tabular` environment. The tables depend on the `siunitx` package. To modify the style or contents of the tables (e.g. if you want to avoid the `siunitx` dependency), you will need to modify `analysis/common.py`.
 
 A tables is generated from a list of inputs and a list of row names, which are paired up (both must have the same length!).
 For example, a table with rows Foo and Bar can be generated from `foo.csv` and `bar.csv` with
@@ -109,7 +81,7 @@ For example, a table with rows Foo and Bar can be generated from `foo.csv` and `
 $ python analysis/make-table.py --inputs foo.csv bar.csv --names Foo Bar -o foo-bar-answered.tex
 ```
 
-By default, the tables exclude trivially obtained answers listed in the file `exclude`. To include everything, use the `-q` option.
+To exclude answers (e.g. to limit numbers to instances of interest), use the `-x/--exclude` option with a filename.
 
 #### Plots
 
@@ -124,4 +96,17 @@ python analysis/cactus_plots.py --input $INPUTS --names $NAMES --virtual-best -o
 
 By defauls the plots are output as .pdf files. This can be modified using the `-f/--format` option (see the documentation for `matplotlib.pyplot.savefig` for valid formats).
 
-By default, the cactus plots exclude trivially obtained answers listed in the file `exclude`. To include everything, use the `-q` option.
+**NOTE:** The present version of the script assumes you want to create the version in the paper, which has two sets of 4 lines in one plot. 
+If you want to plot a different number of lines, you'll want to tweak some of the styling parameters starting from line 148 (the `linestyles`, `colours`, and `linewidths` variables), or your plot might display strangely.
+
+The particular plot used in the paper is computed as follows (after running `analysis/aggregate-files.py` as described above):
+
+``` sh
+python analysis/cactus_plots.py --inputs csv/{baseline,classic,liebke,state-por,heur+baseline,heur+classic,heur+liebke,heur+state-por} --names "Baseline" Classic "Automata-driven POR" "Liebke POR" "Baseline Heur" "Classic HPOR" "Automata-driven HPOR" "Liebke HPOR" --exclude analysis/generated/exclude -o cactus.pdf -m 45
+```
+
+### Data analysis (multicore)
+
+The multicore data analysis is slightly more complicated, as the same query can be potentially answered multiple times. 
+The script `analysis/check_benchkit.py` compares two multicore experiments and prints number of answers for each.
+Further data analysis opportunities are limited, as the experimental set-up does not provide easy access to running time or peak memory consumption.

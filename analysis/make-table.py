@@ -9,10 +9,12 @@ from common import *
 
 
 if __name__ == "__main__":
-    args = parse_program_arguments()
+    parser = get_argument_parser()
+    parser.add_argument("--filename", type=str, help="Filename to write the table to.", default="num-answered.tex")
+    args = parse_program_arguments(parser)
 
     dataset = {}
     for input, name in zip(args.input, args.names):
         dataset[name] = import_csv(input)
 
-    num_answers_table(dataset, args, args.output)
+    num_answers_table(dataset, args, args.filename)

@@ -84,13 +84,7 @@ if __name__ == "__main__":
         help="Generate series of best score across all input for an idealised solver",
     )
     parser.add_argument("--no-legend", help="Disable plot legend", action="store_true")
-    parser.add_argument(
-        "--no-simplification",
-        help="Exclude answers obtainable by query simplification",
-        action="store_true",
-    )
-    parser.add_argument("--less-styles", action="store_true")
-
+    parser.add_argument("--exclude", type=argparse.FileType("r"), help="Exclude queries listed in file")
     args = parser.parse_args()
 
     if len(args.names) != len(args.inputs):
@@ -98,11 +92,10 @@ if __name__ == "__main__":
         print(args.inputs)
         raise RuntimeError("Please provide as many names as input files (in order)")
 
-    if args.no_simplification:
-        with open("simplified") as f:
-            exclude = set(q.strip() for q in f.readlines())
-        with open("immediate-solve") as f:
-            exclude = exclude.union(set(q.strip() for q in f.readlines()))
+    if args.exclude:
+        exclude = set(q.strip() for q in args.exclude.readlines())
+    else:
+        exclude = set()
 
     inputs: Dict[str, Dict[str, Tuple[str, float, int, int]]] = {}
     n_inputs = len(args.inputs)
@@ -113,26 +106,8 @@ if __name__ == "__main__":
                 x[0]: (x[1], float(x[2]), int(x[3]), int(x[4]) if len(x) > 4 else 0)
                 for x in reader
                 if (args.time_limit is None or float(x[2]) <= args.time_limit)
-                and (not args.no_simplification or x[0] not in exclude)
+                and x[0] not in exclude
             }
-
-    if args.weak is not None:
-        master = set(inputs[args.names[args.weak]].keys())
-        for name, input in inputs.items():
-            if name == args.names[args.weak]:
-                continue
-
-            to_remove = set(input.keys()) - master
-
-            for query in to_remove:
-                del input[query]
-
-    if args.filter is not None:
-        queries = set(args.filter.read().splitlines())
-        for name, input in inputs.items():
-            to_remove = set(input.keys()) - queries
-            for query in to_remove:
-                del input[query]
 
     all_queries: Optional[Set[str]] = None
     if args.intersection:
@@ -170,17 +145,21 @@ if __name__ == "__main__":
         inputs["Virtual Best Solver"] = virtual_best
 
     fig, ax = plt.subplots()
-    linestyles = ['-', '--', '-.', ':', (0, (3,1,1,1)), (0, (5, 1)), (0, (3, 3,1,3,1,3))]
-    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
-    if args.less_styles:
-        linestyles = linestyles[1:]
-        colors = colors[1:]
+    linestyles = ['-', '--', '-.', ':'] * 2 + [(0, (3,1,1,1)), (0, (5, 1)), (0, (3, 3,1,3,1,3))]
+    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'] * 2 + ['#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+
+    linewidths = 4 * [1] + 4 * [1.6]
+
+    fig.set_figwidth(7.2)
+    fig.set_figheight(4.2)
+
     vbslinestyle = (0, (5, 2, 1, 2, 1, 2))
     vbscolor = '#000000'
     plt.yscale('log')
     #ax.yaxis.set_major_formatter(ticker.FuncFormatter(format_logdecimal))
     #ax.yaxis.set_minor_formatter(ticker.FuncFormatter(format_logdecimal))
-    formatter = ticker.LogFormatter(minor_thresholds=(2, 1))
+    formatter = ticker.LogFormatter(minor_thresholds=(2,1.5))
+    #formatter = ticker.FuncFormatter(format_logdecimal)
     ax.yaxis.set_major_formatter(formatter)
     ax.yaxis.set_minor_formatter(formatter)
     x_maxes = []
@@ -196,11 +175,12 @@ if __name__ == "__main__":
         linestyle = vbslinestyle if name == "Virtual Best Solver" else linestyles[i]
         color = vbscolor if name == "Virtual Best Solver" else colors[i]
         path = plt.plot(range(n_below, n_below + len(time)), time,
-                        linestyle=linestyle, color=color, label=f"{name} ($n={len(input.values())}$)")
+                        linestyle=linestyle, linewidth=linewidths[i], color=color, label=f"{name} ")
         # c=path.get_facecolors()[0].tolist()
         if args.max_line:
             plt.axvline(len(time), c='k', linestyle='--')
 
+    x_maxes = sorted(x_maxes)
     if args.tail:
         if args.virtual_best:
             cut = max(x_maxes[:-1]) - args.tail
@@ -210,47 +190,34 @@ if __name__ == "__main__":
         ybot = 0.8 * min(T[cut] for T in time_series.values())
         ytop = 1.2 * max(T[-1] for T in time_series.values())
         plt.ylim(ybot, ytop)
-
+    else:
+        pass
+        #plt.xlim(left=plt.xlim()[0] * 0.9)
 
     if not args.no_legend:
-        plt.legend()
-    plt.title("Time (in seconds)")
+        plt.legend(fontsize='small')
+    #plt.title("Time (in seconds)")
+    plt.ylabel("Time (s)")
+    plt.xlabel("Instances")
+    #ax.xaxis.set_label("Instances")
+    #ax.yaxis.set_label("Time (in s)")
     if args.limit is not None:
         plt.ylim(top=args.limit)
     if args.min is not None:
         plt.ylim(bottom=args.min)
 
+    #plt.show()
     plt.savefig(f"{outfile_base}-time.{args.format}", format=args.format, bbox_inches="tight", dpi=1000)
     plt.clf()
+
     sys.exit(0)
+    print("Config\t\t\tMedian\tDist to baseline")
+    dataset = list(time_series.items())
+    for i, (name, input) in enumerate(dataset):
+        median = sorted(input)[len(input) // 2]
+        prev_base = dataset[i // 4 * 4]
+        base = inputs[prev_base[0]]
+        sorted_input = sorted([t for _, t, _, _ in inputs[name].values() if args.limit is None or t < args.limit])
+        dist_base = sorted_input[len(base) - 1]
+        print(f"{name:18}\t{median}\t{dist_base}")
 
-    fig, ax = plt.subplots()
-    plt.yscale('log')
-    ax.yaxis.set_major_formatter(ticker.FuncFormatter(format_logdecimal))
-    for i, (name, input) in enumerate(inputs.items()):
-        memory = sorted([m / 1024 for _, _, m, _ in input.values()])
-        plt.plot(range(len(memory)), memory, linestyle=linestyle, label=f"{name} ($n={len(input.values())}$)")
-
-    if not args.no_legend:
-        plt.legend()
-    plt.title("Memory (in MB)")
-    #if args.limit is not None:
-    #    plt.ylim(0, args.limit)
-    plt.savefig(f"{outfile_base}-memory.{args.format}", format=args.format, bbox_inches="tight", dpi=1000)
-    plt.clf()
-
-    if args.explored:
-        fig, ax = plt.subplots()
-        plt.yscale('log')
-        ax.yaxis.set_major_formatter(ticker.LogFormatter())
-        for i, (name, input) in enumerate(inputs.items()):
-            explored = sorted([explored for _, _, _, explored in input.values()])
-            plt.plot(range(len(explored)), explored, linestyle=linestyles[i], label=f"{name} ($n={len(input.values())}$)")
-
-        if not args.no_legend:
-            plt.legend()
-        plt.title("Explored states")
-        #if args.limit is not None:
-        #    plt.ylim(0, args.limit)
-        plt.savefig(f"{outfile_base}-explored.{args.format}", format=args.format, bbox_inches="tight", dpi=1000)
-        plt.clf()
