@@ -1,0 +1,10 @@
+.DS_Store
+.idea
+*.log
+tmp/
+
+answers
+mcc2021
+mcc2021.tar.gz
+BENCHKIT
+output
