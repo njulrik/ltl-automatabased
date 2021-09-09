@@ -69,7 +69,7 @@ for t in LTL{Cardinality,Fireability} ; do
     let "M=$MEMORY+1" ; 
     CMD="sequential-bin/$BIN -n -x QUERY_PLACEHOLDER ./$F/MODEL_PLACEHOLDER/model.pnml ./$F/MODEL_PLACEHOLDER/${t}.xml -ltl $ALGORITHM $ARGUMENTS" 
     OUT="$ODIR/MODEL_PLACEHOLDER.QUERY_PLACEHOLDER.${t}"
-    if [[ -z $PARTITION ]] ; then
+    if [[ -z $PARTITION || $PARTITION == "none" ]] ; then
         parallel ./run_job_array.sh "\"$CMD\"" "\"$OUT\"" $MEMORY $TO $F {} :::: <(seq 1 $COUNT)
     else
         sbatch --array=1-$COUNT -n 1 -c $N --mem="${M}G" --partition=$PARTITION --output="slurm-dump/job-%j" --job-name=$BIN ./run_job_array.sh "$CMD" "$OUT" $MEMORY $TO $F
