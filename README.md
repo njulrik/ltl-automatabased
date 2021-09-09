@@ -20,10 +20,18 @@ Alternatively you can download and install the data set yourself ([Download](htt
 1. Run the desired experiment from the `experiments` folder or run `all_experiments.sh`.
 2. The answers are available in `output/mcc2020`.
 
+The experiments are by default run using GNU `parallel` (on Ubuntu run `apt-get install parallel`).
+If you have a cluster running Slurm, you can specify a partition using the `PARTITION` environment variable.
+If you have a cluster running a different scheduler, you will need to modify the `run_*.sh` scripts yourself.
+
 #### MCC setup
 
 1. Run `run_mcc.sh`.
 2. The answers are now available in the `BENCHKIT` folder.
+
+The experiments are by default run using GNU `parallel` (on Ubuntu run `apt-get install parallel`).
+If you have a cluster running Slurm, you can specify a partition using the `PARTITION` environment variable.
+If you have a cluster running a different scheduler, you will need to modify the `run_*.sh` scripts yourself.
 
 ### Data analysis (Single core)
 Data analysis is done using various Python 3 scripts located in `analysis`. All scripts (excluding `common.py`) have usage strings via `-h` (e.g. `python analysis/to_csv.py -h` or equivalently `analysis/to_csv.py -h`), which may contain more options than detailed here.
@@ -48,13 +56,6 @@ $ python analysis/to_csv.py output/mcc2020/foo > csv/foo.csv
 
 The CSV representation contains (in order) the formula name, the answer (`TRUE` or `FALSE`), the time taken (in seconds) and peak memory usage (in KB).
 Each line corresponds to one answer, thus the total number of answers can be found using `wc -l csv/foo.csv`.
-
-<!-- The plots and tables in the thesis exclude answers obtained trivially, either due to no valid initial state or due to query simplification.  -->
-<!-- To compute these based on CSV files `csv/foo.csv` and `csv/bar.csv`: -->
-
-``` sh
-$ python analysis/trivial-answers.py csv/foo.csv csv/bar.csv > exclude
-```
 
 #### Computing "interesting" instances
 
@@ -85,7 +86,7 @@ To exclude answers (e.g. to limit numbers to instances of interest), use the `-x
 
 #### Plots
 
-The cactus plots are generated using `analysis/cactus_plots.py` (depends on `matplotlib`, 3.4.1 used, and a usable `pdflatex` for TeX fonts).
+The cactus plots are generated using `analysis/cactus_plots.py` (depends on `matplotlib` (tested using version 3.4.1), and a usable `pdflatex` for TeX fonts).
 Like `make-table.py`, the cactus plots are given a list of CSV files and a list of labels.
 In the thesis, for each comparison there is a cactus plot with a minimum time of 1 second and a cactus plot showing the top 1500 indices, obtainable as follows:
 
