@@ -1,3 +1,5 @@
+**This package has been superceded by a newer version available at https://zenodo.org/record/5704172**
+
 # Reproducibility Package: Automata-Driven Partial Order Reduction and Guided Search for LTL
 Reproducibility package for the paper *Automata-Driven Partial Order Reduction and Guided Search for LTL Model Checking*, authored by Peter Gjøl Jensen, Jiri Srba, Nikolaj Jensen Ulrik, and Simon Mejlby Virenfeldt, extended from the Master's Thesis by Nikolaj Jensen Ulrik and Simon Mejlby Virenfeldt. 
 The package contains the binaries used to obtain the answers contained within the paper, the scripts to run the experiments from the paper, and scripts used for data processing and obtaining the results present in the paper.
